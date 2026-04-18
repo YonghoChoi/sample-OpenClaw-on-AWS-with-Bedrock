@@ -653,6 +653,16 @@ Resources:
 
                   # System update
                   echo "[1/9] Updating system..."
+                  # Wait for cloud-init and unattended-upgrades to release dpkg lock
+                  echo "Waiting for dpkg lock to be released..."
+                  for i in {1..30}; do
+                    if fuser /var/lib/dpkg/lock-frontend >/dev/null 2>&1; then
+                      echo "dpkg locked, waiting... ($i/30)"
+                      sleep 10
+                    else
+                      break
+                    fi
+                  done
                   apt-get update
                   apt-get upgrade -y
                   apt-get install -y unzip curl
