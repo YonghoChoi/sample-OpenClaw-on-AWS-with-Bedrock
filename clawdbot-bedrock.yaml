@@ -1,5 +1,5 @@
 AWSTemplateFormatVersion: '2010-09-09'
-Description: 'OpenClaw - AWS Native Deployment (Bedrock + SSM + VPC Endpoints)'
+Description: 'OpenClaw - AWS Native Deployment (Bedrock + SSM + Private Subnet with NAT Gateway)'
 
 Metadata:
   cfn-lint:
@@ -238,6 +238,53 @@ Resources:
     Properties:
       SubnetId: !Ref PublicSubnet
       RouteTableId: !Ref PublicRouteTable
+
+  # NAT Gateway for Private Subnet
+  NATGatewayEIP:
+    Type: AWS::EC2::EIP
+    DependsOn: AttachGateway
+    Properties:
+      Domain: vpc
+      Tags:
+        - Key: Name
+          Value: !Sub "${AWS::StackName}-nat-eip"
+
+  NATGateway:
+    Type: AWS::EC2::NatGateway
+    Properties:
+      AllocationId: !GetAtt NATGatewayEIP.AllocationId
+      SubnetId: !Ref PublicSubnet
+      Tags:
+        - Key: Name
+          Value: !Sub "${AWS::StackName}-nat-gateway"
+
+  PrivateRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref OpenClawVPC
+      Tags:
+        - Key: Name
+          Value: !Sub "${AWS::StackName}-private-rt"
+
+  PrivateRoute:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref PrivateRouteTable
+      DestinationCidrBlock: "0.0.0.0/0"
+      NatGatewayId: !Ref NATGateway
+
+  PrivateSubnetRouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PrivateSubnet
+      RouteTableId: !Ref PrivateRouteTable
+
+  PrivateSubnet2RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Condition: CreateEndpoints
+    Properties:
+      SubnetId: !Ref PrivateSubnet2
+      RouteTableId: !Ref PrivateRouteTable
 
   # VPC Endpoint Security Group
   VPCEndpointSecurityGroup:
@@ -650,25 +697,13 @@ Resources:
                       mkfs.ext4 -L openclaw-data "$DATA_DEVICE"
                     fi
                     mkdir -p /data
-                    if ! mount "$DATA_DEVICE" /data; then
-                      echo "FATAL: failed to mount data volume $DATA_DEVICE at /data"
-                      exit 1
-                    fi
+                    mount "$DATA_DEVICE" /data || true
                     grep -q "$DATA_DEVICE" /etc/fstab || \
                       echo "$DATA_DEVICE /data ext4 defaults,nofail 0 2" >> /etc/fstab
                     mkdir -p /data/openclaw
                     chown ubuntu:ubuntu /data/openclaw
-                    # Keep ~/.openclaw symlink for CLI convenience (e.g. 'ls ~/.openclaw').
-                    # Set OPENCLAW_STATE_DIR to the real path so OpenClaw's exec approval
-                    # boundary check never traverses the symlink.
                     [ -L /home/ubuntu/.openclaw ] || ln -sf /data/openclaw /home/ubuntu/.openclaw
-                    mkdir -p /home/ubuntu/.config/environment.d
-                    echo "OPENCLAW_STATE_DIR=/data/openclaw" >> /home/ubuntu/.config/environment.d/openclaw.conf
-                  else
-                    echo "FATAL: no data volume found — expected an EBS volume attached at /dev/nvme1n1, /dev/xvdf, or /dev/sdf"
-                    exit 1
                   fi
-                  STATE_DIR=/data/openclaw
 
                   # System update
                   echo "[1/9] Updating system..."
@@ -790,17 +825,7 @@ Resources:
                     echo "export AWS_PROFILE=default"
                     echo "export OPENCLAW_MODEL=${OpenClawModel}"
                     echo "export OPENCLAW_USE_BEDROCK=true"
-                    echo "export OPENCLAW_STATE_DIR=/data/openclaw"
                   } >> /home/ubuntu/.bashrc
-
-                  # Also add to .profile so OPENCLAW_STATE_DIR is available in
-                  # non-interactive login shells (e.g. 'sudo su - ubuntu')
-                  echo "export OPENCLAW_STATE_DIR=/data/openclaw" >> /home/ubuntu/.profile
-                  chown ubuntu:ubuntu /home/ubuntu/.profile
-
-                  # Ensure .config is ubuntu-owned before gateway install runs
-                  mkdir -p /home/ubuntu/.config/systemd/user
-                  chown -R ubuntu:ubuntu /home/ubuntu/.config
 
                   sudo -u ubuntu mkdir -p /home/ubuntu/.config/environment.d
                   sudo -u ubuntu bash -c "{ echo AWS_REGION=$AWS_REGION; echo AWS_DEFAULT_REGION=$AWS_REGION; echo AWS_PROFILE=default; } > /home/ubuntu/.config/environment.d/aws.conf"
@@ -810,12 +835,12 @@ Resources:
 
                   # Configure OpenClaw
                   echo "[8/9] Configuring OpenClaw..."
-                  sudo -u ubuntu mkdir -p "$STATE_DIR"
+                  sudo -u ubuntu mkdir -p /home/ubuntu/.openclaw
 
                   # Write .env for Bedrock IAM auth — survives gateway install/reinstall
                   # OpenClaw 2026.4.5+ uses pi-coding-agent which needs AWS_PROFILE
                   # to discover IAM credentials from EC2 instance profile (IMDS)
-                  sudo -u ubuntu bash -c "printf 'AWS_PROFILE=default\nAWS_REGION=$AWS_REGION\nAWS_DEFAULT_REGION=$AWS_REGION\n' > $STATE_DIR/.env"
+                  sudo -u ubuntu bash -c "printf 'AWS_PROFILE=default\nAWS_REGION=$AWS_REGION\nAWS_DEFAULT_REGION=$AWS_REGION\n' > /home/ubuntu/.openclaw/.env"
 
                   GATEWAY_TOKEN=$(openssl rand -hex 24)
 
@@ -825,15 +850,15 @@ Resources:
                   OPENCLAW_VERSION="${OpenClawVersion}"
                   if [ "$OPENCLAW_VERSION" = "2026.3.24" ]; then
                     echo "Using legacy config (models.providers) for $OPENCLAW_VERSION"
-                    cp /opt/openclaw/openclaw-config-legacy.json "$STATE_DIR/openclaw.json"
-                    sed -i "s/REGION_PLACEHOLDER/$AWS_REGION/g" "$STATE_DIR/openclaw.json"
+                    cp /opt/openclaw/openclaw-config-legacy.json /home/ubuntu/.openclaw/openclaw.json
+                    sed -i "s/REGION_PLACEHOLDER/$AWS_REGION/g" /home/ubuntu/.openclaw/openclaw.json
                   else
                     echo "Using modern config (plugins.discovery) for $OPENCLAW_VERSION"
-                    cp /opt/openclaw/openclaw-config-modern.json "$STATE_DIR/openclaw.json"
+                    cp /opt/openclaw/openclaw-config-modern.json /home/ubuntu/.openclaw/openclaw.json
                   fi
-                  chown ubuntu:ubuntu "$STATE_DIR/openclaw.json"
-                  sed -i "s/GATEWAY_TOKEN_PLACEHOLDER/$GATEWAY_TOKEN/g" "$STATE_DIR/openclaw.json"
-                  sed -i "s|MODEL_ID_PLACEHOLDER|${OpenClawModel}|g" "$STATE_DIR/openclaw.json"
+                  chown ubuntu:ubuntu /home/ubuntu/.openclaw/openclaw.json
+                  sed -i "s/GATEWAY_TOKEN_PLACEHOLDER/$GATEWAY_TOKEN/g" /home/ubuntu/.openclaw/openclaw.json
+                  sed -i "s|MODEL_ID_PLACEHOLDER|${OpenClawModel}|g" /home/ubuntu/.openclaw/openclaw.json
 
                   # Install and start gateway
                   for i in $(seq 1 15); do
@@ -845,9 +870,8 @@ Resources:
                     sleep 2
                   done
 
-                  sudo -H -u ubuntu XDG_RUNTIME_DIR=/run/user/1000 DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/1000/bus OPENCLAW_STATE_DIR="$STATE_DIR" bash -c '
+                  sudo -H -u ubuntu XDG_RUNTIME_DIR=/run/user/1000 DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/1000/bus bash -c '
                   export HOME=/home/ubuntu
-                  export OPENCLAW_STATE_DIR=$OPENCLAW_STATE_DIR
                   export NVM_DIR="$HOME/.nvm"
                   [ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"
                   openclaw gateway install || echo "Gateway install failed"
@@ -891,8 +915,8 @@ Resources:
                   '
 
                   # Copy SOUL.md
-                  cp /opt/openclaw/SOUL.md "$STATE_DIR/SOUL.md"
-                  chown ubuntu:ubuntu "$STATE_DIR/SOUL.md"
+                  cp /opt/openclaw/SOUL.md /home/ubuntu/.openclaw/SOUL.md
+                  chown ubuntu:ubuntu /home/ubuntu/.openclaw/SOUL.md
 
                   # Save token to SSM Parameter Store
                   STACK_NAME="${AWS::StackName}"
@@ -905,8 +929,8 @@ Resources:
                   unset GATEWAY_TOKEN
 
                   # Save instance info
-                  echo "$INSTANCE_ID" > "$STATE_DIR/instance_id.txt"
-                  echo "$AWS_REGION" > "$STATE_DIR/region.txt"
+                  echo "$INSTANCE_ID" > /home/ubuntu/.openclaw/instance_id.txt
+                  echo "$AWS_REGION" > /home/ubuntu/.openclaw/region.txt
 
                   # Copy SSM access script
                   cp /opt/openclaw/ssm-portforward.sh /home/ubuntu/ssm-portforward.sh
@@ -914,8 +938,8 @@ Resources:
 
                   # Signal CloudFormation
                   echo "[9/9] Signaling CloudFormation..."
-                  echo "SUCCESS" > "$STATE_DIR/setup_status.txt"
-                  echo "Setup completed: $(date)" >> "$STATE_DIR/setup_status.txt"
+                  echo "SUCCESS" > /home/ubuntu/.openclaw/setup_status.txt
+                  echo "Setup completed: $(date)" >> /home/ubuntu/.openclaw/setup_status.txt
 
                   # Read token back from SSM for cfn-signal (so CloudFormation Outputs can build the access URL)
                   CFN_TOKEN=$(aws ssm get-parameter --name "/openclaw/$STACK_NAME/gateway-token" --with-decryption --query Parameter.Value --output text --region $AWS_REGION 2>/dev/null || echo "TOKEN_UNAVAILABLE")
@@ -951,11 +975,11 @@ Resources:
         - Device: /dev/sdf
           VolumeId: !If [ProtectData, !Ref OpenClawDataVolumeRetained, !Ref OpenClawDataVolumeNotRetained]
       NetworkInterfaces:
-        - AssociatePublicIpAddress: true
+        - AssociatePublicIpAddress: false
           DeviceIndex: 0
           GroupSet:
             - !Ref OpenClawSecurityGroup
-          SubnetId: !Ref PublicSubnet
+          SubnetId: !Ref PrivateSubnet
       BlockDeviceMappings:
         - DeviceName: /dev/sda1
           Ebs:
@@ -1019,12 +1043,13 @@ Outputs:
       - |
         EC2 (${InstanceType}): ~$20-40 (Graviton instances 20% cheaper)
         EBS (30GB): ~$2.40
+        NAT Gateway: ~$32 ($0.045/hour + data processing)
         VPC Endpoints: ${EndpointCost}
         Bedrock: Pay-per-use
         Total: ~${TotalCost}/month
         Note: Graviton (ARM64) instances offer better price-performance ratio
       - EndpointCost: !If [CreateEndpoints, "~$29 ($0.01/hour x 5 endpoints)", "$0"]
-        TotalCost: !If [CreateEndpoints, "$45-65", "$23-43"]
+        TotalCost: !If [CreateEndpoints, "$77-97", "$55-75"]
 
   InstanceArchitecture:
     Description: "Instance architecture"

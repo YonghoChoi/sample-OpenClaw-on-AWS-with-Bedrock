@@ -2,7 +2,7 @@
 
 > 在 AWS 上部署你自己的 AI 助手 — 连接 WhatsApp、Telegram、Discord、Slack。基于 Amazon Bedrock，无需 API 密钥，一键部署，约 $40/月。
 
-[English](README.md) | 简体中文
+[English](README.md) | 简体中文 | [한국어](README_KO.md)
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![AWS](https://img.shields.io/badge/AWS-Bedrock-orange.svg)](https://aws.amazon.com/bedrock/)
