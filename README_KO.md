@@ -35,10 +35,10 @@
 
 | 리전 | 시작 |
 |--------|--------|
-| **미국 서부 (오리건)** | [![Launch Stack](https://s3.amazonaws.com/cloudformation-examples/cloudformation-launch-stack.png)](https://console.aws.amazon.com/cloudformation/home?region=us-west-2#/stacks/create/review?stackName=openclaw-bedrock&templateURL=https://sharefile-jiade.s3.cn-northwest-1.amazonaws.com.cn/clawdbot-bedrock.yaml) |
-| **미국 동부 (버지니아)** | [![Launch Stack](https://s3.amazonaws.com/cloudformation-examples/cloudformation-launch-stack.png)](https://console.aws.amazon.com/cloudformation/home?region=us-east-1#/stacks/create/review?stackName=openclaw-bedrock&templateURL=https://sharefile-jiade.s3.cn-northwest-1.amazonaws.com.cn/clawdbot-bedrock.yaml) |
-| **유럽 (아일랜드)** | [![Launch Stack](https://s3.amazonaws.com/cloudformation-examples/cloudformation-launch-stack.png)](https://console.aws.amazon.com/cloudformation/home?region=eu-west-1#/stacks/create/review?stackName=openclaw-bedrock&templateURL=https://sharefile-jiade.s3.cn-northwest-1.amazonaws.com.cn/clawdbot-bedrock.yaml) |
-| **아시아 태평양 (도쿄)** | [![Launch Stack](https://s3.amazonaws.com/cloudformation-examples/cloudformation-launch-stack.png)](https://console.aws.amazon.com/cloudformation/home?region=ap-northeast-1#/stacks/create/review?stackName=openclaw-bedrock&templateURL=https://sharefile-jiade.s3.cn-northwest-1.amazonaws.com.cn/clawdbot-bedrock.yaml) |
+| **미국 서부 (오리건)** | [![Launch Stack](https://s3.amazonaws.com/cloudformation-examples/cloudformation-launch-stack.png)](https://console.aws.amazon.com/cloudformation/home?region=us-west-2#/stacks/create/review?stackName=openclaw-bedrock&templateURL=https://raw.githubusercontent.com/YonghoChoi/sample-OpenClaw-on-AWS-with-Bedrock/main/clawdbot-bedrock.yaml) |
+| **미국 동부 (버지니아)** | [![Launch Stack](https://s3.amazonaws.com/cloudformation-examples/cloudformation-launch-stack.png)](https://console.aws.amazon.com/cloudformation/home?region=us-east-1#/stacks/create/review?stackName=openclaw-bedrock&templateURL=https://raw.githubusercontent.com/YonghoChoi/sample-OpenClaw-on-AWS-with-Bedrock/main/clawdbot-bedrock.yaml) |
+| **유럽 (아일랜드)** | [![Launch Stack](https://s3.amazonaws.com/cloudformation-examples/cloudformation-launch-stack.png)](https://console.aws.amazon.com/cloudformation/home?region=eu-west-1#/stacks/create/review?stackName=openclaw-bedrock&templateURL=https://raw.githubusercontent.com/YonghoChoi/sample-OpenClaw-on-AWS-with-Bedrock/main/clawdbot-bedrock.yaml) |
+| **아시아 태평양 (도쿄)** | [![Launch Stack](https://s3.amazonaws.com/cloudformation-examples/cloudformation-launch-stack.png)](https://console.aws.amazon.com/cloudformation/home?region=ap-northeast-1#/stacks/create/review?stackName=openclaw-bedrock&templateURL=https://raw.githubusercontent.com/YonghoChoi/sample-OpenClaw-on-AWS-with-Bedrock/main/clawdbot-bedrock.yaml) |
 
 > **사전 요구사항**: 대상 리전에 EC2 키 페어를 생성하세요. Bedrock 모델 액세스는 자동으로 활성화됩니다 — 수동 활성화 불필요.
 
