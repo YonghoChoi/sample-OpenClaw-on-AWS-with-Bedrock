@@ -39,7 +39,6 @@
 | **미국 동부 (버지니아)** | [![Launch Stack](https://s3.amazonaws.com/cloudformation-examples/cloudformation-launch-stack.png)](https://console.aws.amazon.com/cloudformation/home?region=us-east-1#/stacks/create/review?stackName=openclaw-bedrock&templateURL=https://sharefile-jiade.s3.cn-northwest-1.amazonaws.com.cn/clawdbot-bedrock.yaml) |
 | **유럽 (아일랜드)** | [![Launch Stack](https://s3.amazonaws.com/cloudformation-examples/cloudformation-launch-stack.png)](https://console.aws.amazon.com/cloudformation/home?region=eu-west-1#/stacks/create/review?stackName=openclaw-bedrock&templateURL=https://sharefile-jiade.s3.cn-northwest-1.amazonaws.com.cn/clawdbot-bedrock.yaml) |
 | **아시아 태평양 (도쿄)** | [![Launch Stack](https://s3.amazonaws.com/cloudformation-examples/cloudformation-launch-stack.png)](https://console.aws.amazon.com/cloudformation/home?region=ap-northeast-1#/stacks/create/review?stackName=openclaw-bedrock&templateURL=https://sharefile-jiade.s3.cn-northwest-1.amazonaws.com.cn/clawdbot-bedrock.yaml) |
-| **아시아 태평양 (서울)** | [![Launch Stack](https://s3.amazonaws.com/cloudformation-examples/cloudformation-launch-stack.png)](https://console.aws.amazon.com/cloudformation/home?region=ap-northeast-2#/stacks/create/review?stackName=openclaw-bedrock&templateURL=https://sharefile-jiade.s3.cn-northwest-1.amazonaws.com.cn/clawdbot-bedrock.yaml) |
 
 > **사전 요구사항**: 대상 리전에 EC2 키 페어를 생성하세요. Bedrock 모델 액세스는 자동으로 활성화됩니다 — 수동 활성화 불필요.
 
@@ -57,11 +56,11 @@
 INSTANCE_ID=$(aws cloudformation describe-stacks \
   --stack-name openclaw-bedrock \
   --query 'Stacks[0].Outputs[?OutputKey==`InstanceId`].OutputValue' \
-  --output text --region ap-northeast-2)
+  --output text --region us-west-2)
 
 aws ssm start-session \
   --target $INSTANCE_ID \
-  --region ap-northeast-2  # 배포 리전으로 변경 \
+  --region us-west-2  # 배포 리전으로 변경 \
   --document-name AWS-StartPortForwardingSession \
   --parameters '{"portNumber":["18789"],"localPortNumber":["18789"]}'
 

@@ -94,9 +94,11 @@ The EC2 UserData script installs and configures:
 
 ## Supported Regions
 
-Linux template: us-east-1, us-west-2, eu-west-1, ap-northeast-1
+Linux template: us-east-1, us-west-2, eu-west-1, ap-northeast-1, ap-northeast-2
 
 Mac template: us-east-1, us-east-2, us-west-2, eu-west-1, eu-central-1, ap-southeast-1, ap-southeast-2
+
+**Note**: ap-northeast-2 (Seoul) supports bedrock-runtime but NOT bedrock-mantle. The Kimi K2.5 model (Project Mantle) will not work in Seoul region.
 
 ## Development Guidelines
 
