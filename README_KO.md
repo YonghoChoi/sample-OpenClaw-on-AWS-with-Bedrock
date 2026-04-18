@@ -57,11 +57,11 @@
 INSTANCE_ID=$(aws cloudformation describe-stacks \
   --stack-name openclaw-bedrock \
   --query 'Stacks[0].Outputs[?OutputKey==`InstanceId`].OutputValue' \
-  --output text --region us-west-2)
+  --output text --region ap-northeast-2)
 
 aws ssm start-session \
   --target $INSTANCE_ID \
-  --region us-west-2  # 배포 리전으로 변경 \
+  --region ap-northeast-2  # 배포 리전으로 변경 \
   --document-name AWS-StartPortForwardingSession \
   --parameters '{"portNumber":["18789"],"localPortNumber":["18789"]}'
 
